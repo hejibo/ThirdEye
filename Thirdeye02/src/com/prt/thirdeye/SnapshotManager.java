@@ -285,6 +285,7 @@ public class SnapshotManager {
 			SnapshotInfo info = new SnapshotInfo();
 			info.mSave = true;
 			info.mExposureCompensation = 0;
+			// TODO: PRAT getLastPreviewFrame() doesn't work?
 			info.mThumbnail = mCameraManager.getLastPreviewFrame();
 
 			for (SnapshotListener listener : mListeners) {
@@ -435,6 +436,7 @@ public class SnapshotManager {
 		SnapshotInfo info = new SnapshotInfo();
 		info.mSave = save;
 		info.mExposureCompensation = exposureCompensation;
+		// TODO: PRAT getLastPreviewFrame() doesn't work?
 		info.mThumbnail = mCameraManager.getLastPreviewFrame();
 		info.mBypassProcessing = mBypassProcessing;
 		if (info.mThumbnail != null) {
@@ -624,13 +626,13 @@ public class SnapshotManager {
 				MediaStore.Video.Media.RESOLUTION,
 				Integer.toString(mProfile.videoFrameWidth) + "x"
 						+ Integer.toString(mProfile.videoFrameHeight));
-//		Location loc = null; // TODO: mLocationManager.getCurrentLocation();
-//		if (loc != null) {
-//			mCurrentVideoValues.put(MediaStore.Video.Media.LATITUDE,
-//					loc.getLatitude());
-//			mCurrentVideoValues.put(MediaStore.Video.Media.LONGITUDE,
-//					loc.getLongitude());
-//		}
+		// Location loc = null; // TODO: mLocationManager.getCurrentLocation();
+		// if (loc != null) {
+		// mCurrentVideoValues.put(MediaStore.Video.Media.LATITUDE,
+		// loc.getLatitude());
+		// mCurrentVideoValues.put(MediaStore.Video.Media.LONGITUDE,
+		// loc.getLongitude());
+		// }
 		mVideoNamer.prepareUri(mContentResolver, mCurrentVideoValues);
 		mVideoFilename = tmpPath;
 		Log.v(TAG, "New video filename: " + mVideoFilename);

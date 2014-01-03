@@ -1422,7 +1422,7 @@ public class CamManager {
 		}
 	}
 
-	// TODO: just added for debugging
+	// for debugging
 	public static void dumpParameter(Camera.Parameters parameters) {
 		String flattened = parameters.flatten();
 		StringTokenizer tokenizer = new StringTokenizer(flattened, ";");

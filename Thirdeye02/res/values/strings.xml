@@ -2,6 +2,7 @@
 <resources>
 
     <string name="app_name">Thirdeye02</string>
+    <string name="shutter_button">Shutter Button</string>
     <string name="dummy_button">Dummy Button</string>
     <string name="dummy_content">DUMMY\nCONTENT</string>
 

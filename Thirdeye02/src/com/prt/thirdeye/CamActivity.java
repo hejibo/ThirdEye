@@ -1,5 +1,6 @@
 package com.prt.thirdeye;
 
+import com.prt.thirdeye.ui.ShutterBtn;
 import com.prt.thirdeye.util.SystemUiHider;
 
 import android.annotation.TargetApi;
@@ -17,13 +18,11 @@ import android.view.OrientationEventListener;
 import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.View.OnClickListener;
 import android.widget.TextView;
 
 /**
- * An example full-screen activity that shows and hides the system UI (i.e.
- * status bar and navigation/system bar) with user interaction.
- * 
- * @see SystemUiHider
+ * A main activity shows the camera preview.
  */
 public class CamActivity extends Activity implements
 		CamManager.CameraReadyListener {
@@ -35,6 +34,7 @@ public class CamActivity extends Activity implements
 	private CamManager mCamManager;
 	private SnapshotManager mSnapshotManager;
 	private GLSurfaceView mGLSurfaceView;
+	private ShutterBtn mShutterBtn;
 	private CameraPreviewListener mCamPreviewListener;
 	private CameraOrientationEventListener mOrientationListener;
 	private MainSnapshotListener mSnapshotListener;
@@ -77,7 +77,8 @@ public class CamActivity extends Activity implements
 
 		setContentView(R.layout.activity_cam);
 
-		final View controlsView = findViewById(R.id.fullscreen_content_controls);
+		// final View controlsView =
+		// findViewById(R.id.fullscreen_content_controls);
 		// TODO: PRAT
 		final View contentView = findViewById(R.id.renderer_container);
 
@@ -86,45 +87,6 @@ public class CamActivity extends Activity implements
 		mSystemUiHider = SystemUiHider.getInstance(this, contentView,
 				HIDER_FLAGS);
 		mSystemUiHider.setup();
-		mSystemUiHider
-				.setOnVisibilityChangeListener(new SystemUiHider.OnVisibilityChangeListener() {
-					// Cached values.
-					int mControlsHeight;
-					int mShortAnimTime;
-
-					@Override
-					@TargetApi(Build.VERSION_CODES.HONEYCOMB_MR2)
-					public void onVisibilityChange(boolean visible) {
-						if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.HONEYCOMB_MR2) {
-							// If the ViewPropertyAnimator API is available
-							// (Honeycomb MR2 and later), use it to animate the
-							// in-layout UI controls at the bottom of the
-							// screen.
-							if (mControlsHeight == 0) {
-								mControlsHeight = controlsView.getHeight();
-							}
-							if (mShortAnimTime == 0) {
-								mShortAnimTime = getResources().getInteger(
-										android.R.integer.config_shortAnimTime);
-							}
-							controlsView
-									.animate()
-									.translationY(visible ? 0 : mControlsHeight)
-									.setDuration(mShortAnimTime);
-						} else {
-							// If the ViewPropertyAnimator APIs aren't
-							// available, simply show or hide the in-layout UI
-							// controls.
-							controlsView.setVisibility(visible ? View.VISIBLE
-									: View.GONE);
-						}
-
-						if (visible && AUTO_HIDE) {
-							// Schedule a hide().
-							delayedHide(AUTO_HIDE_DELAY_MILLIS);
-						}
-					}
-				});
 
 		// Set up the user interaction to manually show or hide the system UI.
 		contentView.setOnClickListener(new View.OnClickListener() {
@@ -138,11 +100,14 @@ public class CamActivity extends Activity implements
 			}
 		});
 
-		// Upon interacting with UI controls, delay any scheduled hide()
-		// operations to prevent the jarring behavior of controls going away
-		// while interacting with the UI.
-		findViewById(R.id.dummy_button).setOnTouchListener(
-				mDelayHideTouchListener);
+		// Setup shutter button
+		mShutterBtn = (ShutterBtn) findViewById(R.id.btn_shutter);
+		mShutterBtn.setOnClickListener(new MainShutterClickListener());
+		// mShutterBtn.setShutterBtnListener(l);
+		setCameraMode(mCameraMode);
+
+		// findViewById(R.id.btn_shutter).setOnTouchListener(
+		// mDelayHideTouchListener);
 
 		// Create orientation listener. This should be done first because it
 		// takes some time to get first orientation.
@@ -190,11 +155,10 @@ public class CamActivity extends Activity implements
 
 		super.onResume();
 
-		// TODO: PRAT
-		// if (mSnapshotManager != null) {
-		// mSnapshotManager.onResume();
-		// }
-		// mOrientationListener.enable();
+		if (mSnapshotManager != null) {
+			mSnapshotManager.onResume();
+		}
+		mOrientationListener.enable();
 
 	}
 
@@ -262,6 +226,36 @@ public class CamActivity extends Activity implements
 	 */
 	public static int getCameraMode() {
 		return mCameraMode;
+	}
+
+	/**
+	 * Sets the mode of the activity See CameraActivity.CAMERA_MODE_*
+	 * 
+	 * @param newMode
+	 */
+	public void setCameraMode(final int newMode) {
+		if (mCameraMode == newMode) {
+			return;
+		}
+		if (mCamManager.getParameters() == null) {
+			mHandler.post(new Runnable() {
+				public void run() {
+					setCameraMode(newMode);
+				}
+			});
+		}
+		if (mCamPreviewListener != null) {
+			mCamPreviewListener.onPreviewPause();
+		}
+		mCameraMode = newMode;
+		if (newMode == CAMERA_MODE_PHOTO) {
+			mShutterBtn.setImageDrawable(getResources().getDrawable(
+					R.drawable.btn_photo));
+			mCamManager.setStabilization(false);
+		} else if (newMode == CAMERA_MODE_VIDEO) {
+			// mShutterBtn.setImageDrawable(getResources().getDrawable(R.drawable.btn_video));
+			// mCamManager.setStabilization(true);
+		}
 	}
 
 	public int getOrientation() {
@@ -466,21 +460,22 @@ public class CamActivity extends Activity implements
 
 		@Override
 		public void onSnapshotShutter(final SnapshotManager.SnapshotInfo info) {
-			
-			//TODO: PRAT
-//			final FrameLayout layout = (FrameLayout) findViewById(R.id.thumb_flinger_container);
+
+			// TODO: PRAT
+			// final FrameLayout layout = (FrameLayout)
+			// findViewById(R.id.thumb_flinger_container);
 			// Fling the preview
-//			final ThumbnailFlinger flinger = new ThumbnailFlinger(
-//					CameraActivity.this);
-//			mHandler.post(new Runnable() {
-//				@Override
-//				public void run() {
-//					layout.addView(flinger);
-//					flinger.setRotation(90);
-//					flinger.setImageBitmap(info.mThumbnail);
-//					flinger.doAnimation();
-//				}
-//			});
+			// final ThumbnailFlinger flinger = new ThumbnailFlinger(
+			// CameraActivity.this);
+			// mHandler.post(new Runnable() {
+			// @Override
+			// public void run() {
+			// layout.addView(flinger);
+			// flinger.setRotation(90);
+			// flinger.setImageBitmap(info.mThumbnail);
+			// flinger.doAnimation();
+			// }
+			// });
 
 			// Unlock camera auto settings
 			mCamManager.setLockSetup(false);
@@ -494,15 +489,15 @@ public class CamActivity extends Activity implements
 
 		@Override
 		public void onSnapshotProcessing(SnapshotManager.SnapshotInfo info) {
-			//TODO: PRAT
-//			runOnUiThread(new Runnable() {
-//				public void run() {
-//					if (mSavePinger != null) {
-//						mSavePinger.setPingMode(SavePinger.PING_MODE_ENHANCER);
-//						mSavePinger.startSaving();
-//					}
-//				}
-//			});
+			// TODO: PRAT
+			// runOnUiThread(new Runnable() {
+			// public void run() {
+			// if (mSavePinger != null) {
+			// mSavePinger.setPingMode(SavePinger.PING_MODE_ENHANCER);
+			// mSavePinger.startSaving();
+			// }
+			// }
+			// });
 		}
 
 		@Override
@@ -513,37 +508,37 @@ public class CamActivity extends Activity implements
 			int originalImageId = Integer.parseInt(uriStr.substring(
 					uriStr.lastIndexOf("/") + 1, uriStr.length()));
 			Log.v(TAG, "Adding snapshot to gallery: " + originalImageId);
-			//TODO: PRAT
-//			mReviewDrawer.addImageToList(originalImageId);
-//			mReviewDrawer.scrollToLatestImage();
+			// TODO: PRAT
+			// mReviewDrawer.addImageToList(originalImageId);
+			// mReviewDrawer.scrollToLatestImage();
 		}
 
 		@Override
 		public void onMediaSavingStart() {
-			//TODO: PRAT
-//			runOnUiThread(new Runnable() {
-//				@Override
-//				public void run() {
-//					mSavePinger.setPingMode(SavePinger.PING_MODE_SAVE);
-//					mSavePinger.startSaving();
-//				}
-//			});
+			// TODO: PRAT
+			// runOnUiThread(new Runnable() {
+			// @Override
+			// public void run() {
+			// mSavePinger.setPingMode(SavePinger.PING_MODE_SAVE);
+			// mSavePinger.startSaving();
+			// }
+			// });
 		}
 
 		@Override
 		public void onMediaSavingDone() {
-			//TODO: PRAT
-//			runOnUiThread(new Runnable() {
-//				@Override
-//				public void run() {
-//					mSavePinger.stopSaving();
-//				}
-//			});
+			// TODO: PRAT
+			// runOnUiThread(new Runnable() {
+			// @Override
+			// public void run() {
+			// mSavePinger.stopSaving();
+			// }
+			// });
 		}
 
 		@Override
 		public void onVideoRecordingStart() {
-			//TODO: PRAT
+			// TODO: PRAT
 		}
 
 		@Override
@@ -552,4 +547,20 @@ public class CamActivity extends Activity implements
 		}
 	}
 
+	/**
+	 * When the shutter button is clicked.
+	 */
+	public class MainShutterClickListener implements OnClickListener {
+
+		@Override
+		public void onClick(View v) {
+			if (mSnapshotManager == null)
+				return;
+			if (CamActivity.getCameraMode() == CamActivity.CAMERA_MODE_PHOTO) {
+				mSnapshotManager.queueSnapshot(true, 0);
+			} else if (CamActivity.getCameraMode() == CamActivity.CAMERA_MODE_VIDEO) {
+			}
+		}
+
+	}
 }
