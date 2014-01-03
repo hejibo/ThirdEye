@@ -1,28 +1,22 @@
 package com.prt.thirdeye;
 
 import com.prt.thirdeye.ui.ShutterBtn;
-import com.prt.thirdeye.util.SystemUiHider;
 
-import android.annotation.TargetApi;
 import android.app.Activity;
 import android.content.Context;
-import android.content.res.Configuration;
 import android.hardware.Camera;
 import android.opengl.GLSurfaceView;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.OrientationEventListener;
-import android.view.Surface;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.View.OnClickListener;
-import android.widget.TextView;
 
 /**
- * A main activity shows the camera preview.
+ * CamActivity shows the camera preview and supports user interactions with our
+ * camera.
  */
 public class CamActivity extends Activity implements
 		CamManager.CameraReadyListener {
@@ -43,71 +37,20 @@ public class CamActivity extends Activity implements
 	private Handler mHandler;
 	private boolean mPaused;
 
-	/**
-	 * Whether or not the system UI should be auto-hidden after
-	 * {@link #AUTO_HIDE_DELAY_MILLIS} milliseconds.
-	 */
-	private static final boolean AUTO_HIDE = true;
-
-	/**
-	 * If {@link #AUTO_HIDE} is set, the number of milliseconds to wait after
-	 * user interaction before hiding the system UI.
-	 */
-	private static final int AUTO_HIDE_DELAY_MILLIS = 3000;
-
-	/**
-	 * If set, will toggle the system UI visibility upon interaction. Otherwise,
-	 * will show the system UI visibility upon interaction.
-	 */
-	private static final boolean TOGGLE_ON_CLICK = true;
-
-	/**
-	 * The flags to pass to {@link SystemUiHider#getInstance}.
-	 */
-	private static final int HIDER_FLAGS = SystemUiHider.FLAG_HIDE_NAVIGATION;
-
-	/**
-	 * The instance of the {@link SystemUiHider} for this activity.
-	 */
-	private SystemUiHider mSystemUiHider;
-
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 
+		getWindow().getDecorView().setSystemUiVisibility(
+				View.SYSTEM_UI_FLAG_LOW_PROFILE);
+
 		setContentView(R.layout.activity_cam);
-
-		// final View controlsView =
-		// findViewById(R.id.fullscreen_content_controls);
-		// TODO: PRAT
-		final View contentView = findViewById(R.id.renderer_container);
-
-		// Set up an instance of SystemUiHider to control the system UI for
-		// this activity.
-		mSystemUiHider = SystemUiHider.getInstance(this, contentView,
-				HIDER_FLAGS);
-		mSystemUiHider.setup();
-
-		// Set up the user interaction to manually show or hide the system UI.
-		contentView.setOnClickListener(new View.OnClickListener() {
-			@Override
-			public void onClick(View view) {
-				if (TOGGLE_ON_CLICK) {
-					mSystemUiHider.toggle();
-				} else {
-					mSystemUiHider.show();
-				}
-			}
-		});
 
 		// Setup shutter button
 		mShutterBtn = (ShutterBtn) findViewById(R.id.btn_shutter);
 		mShutterBtn.setOnClickListener(new MainShutterClickListener());
 		// mShutterBtn.setShutterBtnListener(l);
 		setCameraMode(mCameraMode);
-
-		// findViewById(R.id.btn_shutter).setOnTouchListener(
-		// mDelayHideTouchListener);
 
 		// Create orientation listener. This should be done first because it
 		// takes some time to get first orientation.
@@ -116,16 +59,6 @@ public class CamActivity extends Activity implements
 		setupCamera();
 		mHandler = new Handler();
 		mPaused = false;
-	}
-
-	@Override
-	protected void onPostCreate(Bundle savedInstanceState) {
-		super.onPostCreate(savedInstanceState);
-
-		// Trigger the initial hide() shortly after the activity has been
-		// created, to briefly hint to the user that UI controls
-		// are available.
-		delayedHide(100);
 	}
 
 	@Override
@@ -163,39 +96,9 @@ public class CamActivity extends Activity implements
 	}
 
 	/**
-	 * Touch listener to use for in-layout UI controls to delay hiding the
-	 * system UI. This is to prevent the jarring behavior of controls going away
-	 * while interacting with activity UI.
+	 * Setup the Camera hardware and preview
 	 */
-	View.OnTouchListener mDelayHideTouchListener = new View.OnTouchListener() {
-		@Override
-		public boolean onTouch(View view, MotionEvent motionEvent) {
-			if (AUTO_HIDE) {
-				delayedHide(AUTO_HIDE_DELAY_MILLIS);
-			}
-			return false;
-		}
-	};
-
-	Handler mHideHandler = new Handler();
-	Runnable mHideRunnable = new Runnable() {
-		@Override
-		public void run() {
-			mSystemUiHider.hide();
-		}
-	};
-
-	/**
-	 * Schedules a call to hide() in [delay] milliseconds, canceling any
-	 * previously scheduled calls.
-	 */
-	private void delayedHide(int delayMillis) {
-		mHideHandler.removeCallbacks(mHideRunnable);
-		mHideHandler.postDelayed(mHideRunnable, delayMillis);
-	}
-
 	protected void setupCamera() {
-		// Setup the Camera hardware and preview
 		mCamManager = new CamManager(this);
 		((CamApplication) getApplication()).setCameraManager(mCamManager);
 		setGLRenderer(mCamManager.getRenderer());
@@ -205,6 +108,11 @@ public class CamActivity extends Activity implements
 		mCamManager.open(Camera.CameraInfo.CAMERA_FACING_BACK);
 	}
 
+	/**
+	 * Set the GL view using the provided renderer.
+	 * 
+	 * @param renderer
+	 */
 	public void setGLRenderer(GLSurfaceView.Renderer renderer) {
 		final ViewGroup container = ((ViewGroup) findViewById(R.id.renderer_container));
 		// Delete the previous GL Surface View (if any)
@@ -399,16 +307,21 @@ public class CamActivity extends Activity implements
 
 			// Adjust orientationCompensation for the native orientation of the
 			// device.
-			Configuration config = getResources().getConfiguration();
-			int rotation = getWindowManager().getDefaultDisplay().getRotation();
+			// Configuration config = getResources().getConfiguration();
+			// int rotation =
+			// getWindowManager().getDefaultDisplay().getRotation();
 			Util.getDisplayRotation(CamActivity.this);
 
-			boolean nativeLandscape = false;
-
-			if (((rotation == Surface.ROTATION_0 || rotation == Surface.ROTATION_180) && config.orientation == Configuration.ORIENTATION_LANDSCAPE)
-					|| ((rotation == Surface.ROTATION_90 || rotation == Surface.ROTATION_270) && config.orientation == Configuration.ORIENTATION_PORTRAIT)) {
-				nativeLandscape = true;
-			}
+			// boolean nativeLandscape = false;
+			//
+			// if (((rotation == Surface.ROTATION_0 || rotation ==
+			// Surface.ROTATION_180) && config.orientation ==
+			// Configuration.ORIENTATION_LANDSCAPE)
+			// || ((rotation == Surface.ROTATION_90 || rotation ==
+			// Surface.ROTATION_270) && config.orientation ==
+			// Configuration.ORIENTATION_PORTRAIT)) {
+			// nativeLandscape = true;
+			// }
 
 			int orientationCompensation = mOrientation; // + (nativeLandscape ?
 														// 0 : 90);
@@ -437,26 +350,6 @@ public class CamActivity extends Activity implements
 	 */
 	private class MainSnapshotListener implements
 			SnapshotManager.SnapshotListener {
-		private long mRecordingStartTimestamp;
-		private TextView mTimerTv;
-		private boolean mIsRecording;
-
-		private Runnable mUpdateTimer = new Runnable() {
-			@Override
-			public void run() {
-				long recordingDurationMs = System.currentTimeMillis()
-						- mRecordingStartTimestamp;
-				int minutes = (int) Math.floor(recordingDurationMs / 60000.0);
-				int seconds = (int) recordingDurationMs / 1000 - minutes * 60;
-
-				mTimerTv.setText(String.format("%02d:%02d", minutes, seconds));
-
-				// Loop infinitely until recording stops
-				if (mIsRecording) {
-					mHandler.postDelayed(this, 500);
-				}
-			}
-		};
 
 		@Override
 		public void onSnapshotShutter(final SnapshotManager.SnapshotInfo info) {

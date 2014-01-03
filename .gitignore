@@ -1,3 +1,6 @@
+# backup files
+*.tar.gz
+
 # built application files
 *.apk
 *.ap_
