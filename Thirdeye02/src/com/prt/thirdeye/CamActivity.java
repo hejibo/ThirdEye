@@ -1,13 +1,19 @@
 package com.prt.thirdeye;
 
+import com.prt.thirdeye.bluetooth.BluetoothService;
+import com.prt.thirdeye.bluetooth.BluetoothService.BluetoothServiceBinder;
 import com.prt.thirdeye.ui.ShutterBtn;
 
 import android.app.Activity;
+import android.content.ComponentName;
 import android.content.Context;
+import android.content.Intent;
+import android.content.ServiceConnection;
 import android.hardware.Camera;
 import android.opengl.GLSurfaceView;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.IBinder;
 import android.util.Log;
 import android.view.OrientationEventListener;
 import android.view.View;
@@ -36,6 +42,8 @@ public class CamActivity extends Activity implements
 	private int mOrientationCompensation = 0;
 	private Handler mHandler;
 	private boolean mPaused;
+	private BluetoothService mService;
+	private boolean mIsBTSeviceBound = false;
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -59,6 +67,12 @@ public class CamActivity extends Activity implements
 		setupCamera();
 		mHandler = new Handler();
 		mPaused = false;
+
+		Intent intent = new Intent(this, BluetoothService.class);
+		// our service shouldn't destroy if unbind.
+		startService(intent);
+		// Bind to LocalService
+		bindService(intent, mServiceConnection, Context.BIND_AUTO_CREATE);
 	}
 
 	@Override
@@ -95,12 +109,26 @@ public class CamActivity extends Activity implements
 
 	}
 
+	// If you want your activity to receive responses even while it is stopped
+	// in the background, then you can bind during onCreate() and unbind during
+	// onDestroy().
+	// @Override
+	protected void onDestroy() {
+		// TODO fix orienation change issue
+		// Unbind from the service
+		if (mIsBTSeviceBound) {
+			unbindService(mServiceConnection);
+			mIsBTSeviceBound = false;
+		}
+		super.onDestroy();
+	}
+
 	/**
 	 * Setup the Camera hardware and preview
 	 */
 	protected void setupCamera() {
 		mCamManager = new CamManager(this);
-		((CamApplication) getApplication()).setCameraManager(mCamManager);
+		((CamApplication) getApplication()).setCamManager(mCamManager);
 		setGLRenderer(mCamManager.getRenderer());
 		mCamPreviewListener = new CameraPreviewListener();
 		mCamManager.setPreviewPauseListener(mCamPreviewListener);
@@ -252,6 +280,16 @@ public class CamActivity extends Activity implements
 				// mSavePinger.stopSaving();
 			}
 		});
+
+		if (mIsBTSeviceBound) {
+			// wait 1 second and start streaming
+			mHandler.postDelayed(new Runnable() {
+				@Override
+				public void run() {
+					mService.startStreaming();
+				}
+			}, 1000);
+		}
 	}
 
 	@Override
@@ -263,8 +301,12 @@ public class CamActivity extends Activity implements
 				// Toast.makeText(CamActivity.this,
 				// getResources().getString(R.string.cannot_connect_hal),
 				// Toast.LENGTH_LONG).show();
+
 			}
 		});
+
+		if (mIsBTSeviceBound)
+			mService.stopStreaming();
 	}
 
 	/**
@@ -456,4 +498,23 @@ public class CamActivity extends Activity implements
 		}
 
 	}
+
+	/** Defines callbacks for service binding, passed to bindService() */
+	private ServiceConnection mServiceConnection = new ServiceConnection() {
+
+		@Override
+		public void onServiceConnected(ComponentName className, IBinder service) {
+			Log.v(TAG, "onServiceConnected");
+			// We've bound to LocalService, cast the IBinder and get
+			// LocalService instance
+			BluetoothServiceBinder binder = (BluetoothServiceBinder) service;
+			mService = binder.getService();
+			mIsBTSeviceBound = true;
+		}
+
+		@Override
+		public void onServiceDisconnected(ComponentName arg0) {
+			mIsBTSeviceBound = false;
+		}
+	};
 }

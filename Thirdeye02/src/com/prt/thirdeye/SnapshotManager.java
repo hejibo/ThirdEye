@@ -52,6 +52,18 @@ public class SnapshotManager {
 	public final static String TAG = "SnapshotManager";
 	private boolean mPaused;
 
+	public interface PreviewCaptureListener {
+		/**
+		 * This callback is called when a preview is captured.
+		 * 
+		 * @param info
+		 *            A structure containing information about the preview
+		 *            captured
+		 */
+		public void onPreviewCaptured(SnapshotInfo info);
+//		public void onPreviewCaptured(byte[] info);
+	}
+
 	public interface SnapshotListener {
 		/**
 		 * This callback is called when a snapshot is taken (shutter)
@@ -168,6 +180,9 @@ public class SnapshotManager {
 	private Uri mCurrentVideoUri;
 	private ContentValues mCurrentVideoValues;
 
+	// The listener for a streaming preview.
+	private PreviewCaptureListener mPreviewCaptureListener;
+
 	private Camera.ShutterCallback mShutterCallback = new Camera.ShutterCallback() {
 		@Override
 		public void onShutter() {
@@ -214,6 +229,7 @@ public class SnapshotManager {
 
 			final SnapshotInfo snap = mSnapshotsQueue.get(0);
 
+
 			// If we have a Samsung HDR, convert from YUV422 to JPEG first
 			// TODO: PRAT
 			if (mContext.getResources().getBoolean(R.bool.config_useSamsungHDR)) {
@@ -243,6 +259,10 @@ public class SnapshotManager {
 				final int correctedOrientation = orientation;
 				final byte[] finalData = jpegData;
 
+				//TODO: PRAT TEST
+				// if (mPreviewCaptureListener != null)
+				// mPreviewCaptureListener.onPreviewCaptured(finalData);
+				
 				// Just save it as is
 				mImageSaver.addImage(finalData, uri, title, null, width,
 						height, correctedOrientation, snap);
@@ -281,35 +301,27 @@ public class SnapshotManager {
 			Camera.Size s = mCameraManager.getParameters().getPreviewSize();
 			mImageNamer.prepareUri(mContentResolver,
 					System.currentTimeMillis(), s.width, s.height, 0);
-
 			SnapshotInfo info = new SnapshotInfo();
 			info.mSave = true;
 			info.mExposureCompensation = 0;
-			// TODO: PRAT getLastPreviewFrame() doesn't work?
 			info.mThumbnail = mCameraManager.getLastPreviewFrame();
-
 			for (SnapshotListener listener : mListeners) {
 				listener.onSnapshotShutter(info);
 			}
-
 			ByteArrayOutputStream baos = new ByteArrayOutputStream();
 			info.mThumbnail.compress(Bitmap.CompressFormat.JPEG, 80, baos);
 			byte[] jpegData = baos.toByteArray();
-
 			// Calculate the width and the height of the jpeg.
 			int orientation = Exif.getOrientation(jpegData)
 					- mCameraManager.getOrientation();
 			int width, height;
 			width = s.width;
 			height = s.height;
-
 			Uri uri = mImageNamer.getUri();
 			String title = mImageNamer.getTitle();
 			info.mUri = uri;
-
 			mImageSaver.addImage(jpegData, uri, title, null, width, height,
 					orientation);
-
 			for (SnapshotListener listener : mListeners) {
 				listener.onSnapshotSaved(info);
 			}
@@ -436,16 +448,8 @@ public class SnapshotManager {
 		SnapshotInfo info = new SnapshotInfo();
 		info.mSave = save;
 		info.mExposureCompensation = exposureCompensation;
-		// TODO: PRAT getLastPreviewFrame() doesn't work?
 		info.mThumbnail = mCameraManager.getLastPreviewFrame();
 		info.mBypassProcessing = mBypassProcessing;
-		if (info.mThumbnail != null) {
-			Log.v(TAG, "info.mThumbnail" + info.mThumbnail.getByteCount());
-			Log.v(TAG, "info.mThumbnail" + info.mThumbnail.getHeight());
-			Log.v(TAG, "info.mThumbnail" + info.mThumbnail.getWidth());
-		} else
-			Log.v(TAG, "info.mThumbnail is null");
-
 		Camera.Parameters params = mCameraManager.getParameters();
 		if (params != null
 				&& params.getExposureCompensation() != exposureCompensation) {
@@ -466,6 +470,36 @@ public class SnapshotManager {
 			new Thread(mCaptureRunnable).start();
 		}
 	}
+
+	public void setPreviewCaptureListener(PreviewCaptureListener listener) {
+		mPreviewCaptureListener = listener;
+	}
+
+	public void removePreviewCaptureListener() {
+		mPreviewCaptureListener = null;
+	}
+
+	/**
+	 * Capture a preview
+	 */
+	public void captureStreamingPreview() {
+		new Thread(mStreamingPreviewCaptureRunnable).start();
+	}
+
+	private Runnable mStreamingPreviewCaptureRunnable = new Runnable() {
+		@Override
+		public void run() {
+			Camera.Size s = mCameraManager.getParameters().getPreviewSize();
+			mImageNamer.prepareUri(mContentResolver,
+					System.currentTimeMillis(), s.width, s.height, 0);
+			SnapshotInfo info = new SnapshotInfo();
+			info.mSave = false;
+			info.mExposureCompensation = 0;
+			info.mThumbnail = mCameraManager.getLastPreviewFrame();
+			if (mPreviewCaptureListener != null)
+				mPreviewCaptureListener.onPreviewCaptured(info);
+		}
+	};
 
 	public ImageNamer getImageNamer() {
 		return mImageNamer;

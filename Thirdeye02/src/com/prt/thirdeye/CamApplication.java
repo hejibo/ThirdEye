@@ -51,7 +51,12 @@ public class CamApplication extends Application {
         Thread.setDefaultUncaughtExceptionHandler(mExHandler);
     }
 
-    public void setCameraManager(CamManager camMan) {
+    public void setCamManager(CamManager camMan) {
         mCamManager = camMan;
     }
+    
+    public CamManager getCamManager() {
+    	return mCamManager;
+    }
+    
 }
