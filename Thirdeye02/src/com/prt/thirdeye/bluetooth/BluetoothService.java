@@ -11,7 +11,7 @@ import android.os.IBinder;
 import android.util.Log;
 
 import com.prt.btlib.ConnectionCallback;
-import com.prt.btlib.ConnectionCommand;
+import com.prt.btlib.BluetoothData;
 import com.prt.btlib.bluetooth.BluetoothConnection;
 import com.prt.btlib.bluetooth.ServerBluetoothConnection;
 import com.prt.thirdeye.CamApplication;
@@ -26,7 +26,7 @@ public class BluetoothService extends Service {
 
 	private BluetoothConnection mConnection;
 	// you can define original command(byte)
-	public static final byte COMMAND_TEST = 0;
+	public static final byte COMMAND_PREVIEW = 0;
 	public static final int COMMAND_ID_1 = 1;
 	public static final int COMMAND_ID_2 = 2;
 	public static final String TAG = BluetoothService.class.getSimpleName();
@@ -118,6 +118,7 @@ public class BluetoothService extends Service {
 		 * this method called when connection established
 		 */
 		public void onConnected() {
+			Log.e(TAG, "onConnected");
 			isClientConnected = true;
 		}
 
@@ -133,7 +134,7 @@ public class BluetoothService extends Service {
 		/*
 		 * this method called when command received
 		 */
-		public void onCommandReceived(ConnectionCommand command) {
+		public void onDataReceived(BluetoothData command) {
 
 		}
 
@@ -151,7 +152,7 @@ public class BluetoothService extends Service {
 			// };
 			// String str = "hello, world!";
 			// byte[] data = str.getBytes();
-			// mConnection.sendData(COMMAND_TEST, data, COMMAND_ID_2);
+			// mConnection.sendData(COMMAND_PREVIEW, data, COMMAND_ID_2);
 			// break;
 		}
 	}
@@ -192,7 +193,7 @@ public class BluetoothService extends Service {
 	};
 
 	private void sendPreview(byte[] data) {
-		mConnection.sendData(COMMAND_TEST, data, COMMAND_ID_2);
+		mConnection.sendData(COMMAND_PREVIEW, data, COMMAND_ID_2);
 	}
 
 	private PreviewCaptureListener mPreviewCaptureListener = new PreviewCaptureListener() {
@@ -211,6 +212,8 @@ public class BluetoothService extends Service {
 
 				@Override
 				public void run() {
+					Log.v(TAG, "#run mIsStreaming " + mIsStreaming);
+					Log.v(TAG, "#run isClientConnected " + isClientConnected);
 					if (mIsStreaming && isClientConnected) {
 						try {
 							Log.v(TAG, "about to send...");

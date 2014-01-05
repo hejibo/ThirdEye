@@ -61,7 +61,7 @@ public class SnapshotManager {
 		 *            captured
 		 */
 		public void onPreviewCaptured(SnapshotInfo info);
-//		public void onPreviewCaptured(byte[] info);
+		// public void onPreviewCaptured(byte[] info);
 	}
 
 	public interface SnapshotListener {
@@ -229,7 +229,6 @@ public class SnapshotManager {
 
 			final SnapshotInfo snap = mSnapshotsQueue.get(0);
 
-
 			// If we have a Samsung HDR, convert from YUV422 to JPEG first
 			// TODO: PRAT
 			if (mContext.getResources().getBoolean(R.bool.config_useSamsungHDR)) {
@@ -259,10 +258,10 @@ public class SnapshotManager {
 				final int correctedOrientation = orientation;
 				final byte[] finalData = jpegData;
 
-				//TODO: PRAT TEST
+				// TODO: PRAT TEST
 				// if (mPreviewCaptureListener != null)
 				// mPreviewCaptureListener.onPreviewCaptured(finalData);
-				
+
 				// Just save it as is
 				mImageSaver.addImage(finalData, uri, title, null, width,
 						height, correctedOrientation, snap);
@@ -489,15 +488,17 @@ public class SnapshotManager {
 	private Runnable mStreamingPreviewCaptureRunnable = new Runnable() {
 		@Override
 		public void run() {
-			Camera.Size s = mCameraManager.getParameters().getPreviewSize();
-			mImageNamer.prepareUri(mContentResolver,
-					System.currentTimeMillis(), s.width, s.height, 0);
-			SnapshotInfo info = new SnapshotInfo();
-			info.mSave = false;
-			info.mExposureCompensation = 0;
-			info.mThumbnail = mCameraManager.getLastPreviewFrame();
-			if (mPreviewCaptureListener != null)
-				mPreviewCaptureListener.onPreviewCaptured(info);
+			if (mCameraManager.getParameters() != null) {
+				Camera.Size s = mCameraManager.getParameters().getPreviewSize();
+				mImageNamer.prepareUri(mContentResolver,
+						System.currentTimeMillis(), s.width, s.height, 0);
+				SnapshotInfo info = new SnapshotInfo();
+				info.mSave = false;
+				info.mExposureCompensation = 0;
+				info.mThumbnail = mCameraManager.getLastPreviewFrame();
+				if (mPreviewCaptureListener != null)
+					mPreviewCaptureListener.onPreviewCaptured(info);
+			}
 		}
 	};
 

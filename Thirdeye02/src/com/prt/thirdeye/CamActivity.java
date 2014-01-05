@@ -114,7 +114,6 @@ public class CamActivity extends Activity implements
 	// onDestroy().
 	// @Override
 	protected void onDestroy() {
-		// TODO fix orienation change issue
 		// Unbind from the service
 		if (mIsBTSeviceBound) {
 			unbindService(mServiceConnection);

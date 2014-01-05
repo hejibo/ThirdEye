@@ -11,6 +11,10 @@
 # Java class files
 *.class
 
+# assets
+assets/
+res/
+
 # generated files
 bin/
 gen/
