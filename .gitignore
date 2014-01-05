@@ -11,9 +11,10 @@
 # Java class files
 *.class
 
-# assets
+# assets res lib
 assets/
 res/
+libs/
 
 # generated files
 bin/
